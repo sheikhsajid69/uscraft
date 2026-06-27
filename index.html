@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USCraft</title>
+  <meta name="description" content="USCraft – A Minecraft-inspired voxel game built for the browser with Three.js." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/index.css" />
+</head>
+<body>
+
+  <!-- ============ LOADING SCREEN ============ -->
+  <div id="loading-screen">
+    <div class="loading-content">
+      <h1 class="game-title">USCraft</h1>
+      <div class="progress-bar-container">
+        <div id="loading-bar"></div>
+      </div>
+      <p id="loading-text">Loading world…</p>
+    </div>
+  </div>
+
+  <!-- ============ START SCREEN ============ -->
+  <div id="start-screen" style="display:none">
+    <div class="start-content">
+      <h1 class="game-title">USCraft</h1>
+      <p class="click-to-play">Click to Play</p>
+      <div class="controls-hint">
+        <ul>
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</li>
+          <li><kbd>Space</kbd> Jump</li>
+          <li><kbd>Shift</kbd> Sprint</li>
+          <li><kbd>Click</kbd> Break / Place</li>
+          <li><kbd>E</kbd> Inventory</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GAME CANVAS ============ -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud" style="display:none">
+    <div id="crosshair">+</div>
+
+    <div id="hotbar"></div>
+
+    <div id="health-bar">
+      <div id="health-fill"></div>
+    </div>
+
+    <div id="debug-info"></div>
+  </div>
+
+  <!-- ============ INVENTORY SCREEN ============ -->
+  <div id="inventory-screen" style="display:none">
+    <div class="inventory-panel">
+      <h2 class="panel-title">Inventory</h2>
+      <div id="inventory-grid" class="item-grid"></div>
+      <div class="panel-divider"></div>
+      <h3 class="panel-subtitle">Hotbar</h3>
+      <div id="inventory-hotbar" class="item-grid hotbar-grid"></div>
+    </div>
+  </div>
+
+  <!-- ============ CHEST SCREEN ============ -->
+  <div id="chest-screen" style="display:none">
+    <div class="chest-panel">
+      <h2 class="panel-title">Chest</h2>
+      <div id="chest-grid" class="item-grid"></div>
+      <div class="panel-divider"></div>
+      <h3 class="panel-subtitle">Inventory</h3>
+      <div id="chest-player-inventory" class="item-grid"></div>
+      <div class="panel-divider"></div>
+      <h3 class="panel-subtitle">Hotbar</h3>
+      <div id="chest-player-hotbar" class="item-grid hotbar-grid"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

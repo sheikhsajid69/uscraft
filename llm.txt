@@ -1,0 +1,19 @@
+USCraft Codebase Context
+========================
+Overview:
+USCraft is a browser-based voxel engine leveraging Three.js and TypeScript, bundled with Vite.
+
+Directory Structure:
+- src/assets/     : Asset manifests and loading logic for GLB files.
+- src/engine/     : Core game loop, input manager, and WebGL renderer setup.
+- src/items/      : Item definitions, inventory system, dropped items, and projectiles.
+- src/physics/    : Raycasting logic (DDA algorithm).
+- src/player/     : Player controller (WASD, collisions using THREE.Box3, block interaction).
+- src/shared/     : Global constants and block definitions.
+- src/ui/         : HTML/CSS HUD, Chest UI, and Inventory UI controllers.
+- src/world/      : Procedural generation (SimplexNoise), Chunk management, and Greedy Meshing.
+
+Key Architectural Decisions:
+1. Rendering: Greedy meshing reduces draw calls.
+2. Physics: Fixed-timestep updates; AABB collision detection via Three.js Box3.
+3. User Interface: Handled entirely via DOM overlays (index.css) synchronized with game state.

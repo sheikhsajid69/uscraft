@@ -1,0 +1,443 @@
+/* ============================================================
+   USCraft – Minecraft-Aesthetic Stylesheet
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600&display=swap');
+
+/* ---- CSS Variables ---- */
+:root {
+  --mc-bg-dark: #1a1a2e;
+  --mc-bg-panel: rgba(20, 20, 40, 0.92);
+  --mc-border: #555555;
+  --mc-slot-bg: #8b8b8b;
+  --mc-slot-border-light: #c6c6c6;
+  --mc-slot-border-dark: #373737;
+  --mc-text: #e0e0e0;
+  --mc-title: #55ff55;
+  --mc-health: #ff3333;
+  --mc-hotbar-selected: #e0e0e0;
+  --mc-accent: #4ade80;
+  --font-pixel: 'Silkscreen', monospace;
+  --font-ui: 'Inter', sans-serif;
+}
+
+/* ---- Reset ---- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ---- Body ---- */
+body {
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  font-family: var(--font-pixel);
+  color: var(--mc-text);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---- Canvas ---- */
+#game-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+/* ============================================================
+   LOADING SCREEN
+   ============================================================ */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #0d0d1a 0%, #1a1a2e 40%, #12122a 100%);
+  z-index: 1000;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.game-title {
+  font-family: var(--font-pixel);
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--mc-title);
+  text-shadow:
+    0 0 20px rgba(85, 255, 85, 0.6),
+    0 0 60px rgba(85, 255, 85, 0.25),
+    0 4px 0 #1a6b1a;
+  letter-spacing: 4px;
+  margin-bottom: 2rem;
+  user-select: none;
+}
+
+.progress-bar-container {
+  width: 300px;
+  height: 8px;
+  background: #222;
+  border-radius: 4px;
+  margin: 0 auto 1rem;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+
+#loading-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--mc-accent), var(--mc-title));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  box-shadow:
+    0 0 8px rgba(74, 222, 128, 0.5),
+    0 0 20px rgba(74, 222, 128, 0.2);
+  animation: barGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes barGlow {
+  from {
+    box-shadow:
+      0 0 6px rgba(74, 222, 128, 0.4),
+      0 0 14px rgba(74, 222, 128, 0.15);
+  }
+  to {
+    box-shadow:
+      0 0 12px rgba(74, 222, 128, 0.7),
+      0 0 30px rgba(74, 222, 128, 0.3);
+  }
+}
+
+#loading-text {
+  font-family: var(--font-pixel);
+  font-size: 0.85rem;
+  color: #aaa;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+#start-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #0d0d1a 0%, #1a1a2e 40%, #12122a 100%);
+  z-index: 900;
+}
+
+.start-content {
+  text-align: center;
+}
+
+.click-to-play {
+  font-family: var(--font-pixel);
+  font-size: 1.4rem;
+  color: var(--mc-text);
+  margin-bottom: 2rem;
+  animation: pulse 2s ease-in-out infinite;
+  cursor: pointer;
+  letter-spacing: 2px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    text-shadow: 0 0 0 transparent;
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.04);
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  }
+}
+
+.controls-hint {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 1.2rem 2rem;
+  display: inline-block;
+  backdrop-filter: blur(6px);
+}
+
+.controls-hint ul {
+  list-style: none;
+  text-align: left;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  color: #bbb;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.controls-hint kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  color: #fff;
+  margin-right: 4px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* ============================================================
+   HUD – CROSSHAIR
+   ============================================================ */
+#crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  color: #fff;
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.8),
+    1px 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 100;
+  font-family: var(--font-pixel);
+  user-select: none;
+  line-height: 1;
+}
+
+/* ============================================================
+   HUD – HOTBAR
+   ============================================================ */
+#hotbar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  z-index: 100;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+}
+
+.hotbar-slot {
+  width: 48px;
+  height: 48px;
+  background: var(--mc-slot-bg);
+  border: 2px solid;
+  border-color: var(--mc-slot-border-light) var(--mc-slot-border-dark) var(--mc-slot-border-dark) var(--mc-slot-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.1s ease, box-shadow 0.15s ease;
+  image-rendering: pixelated;
+}
+
+.hotbar-slot.selected {
+  border-color: var(--mc-hotbar-selected);
+  box-shadow:
+    0 0 6px rgba(224, 224, 224, 0.5),
+    inset 0 0 4px rgba(255, 255, 255, 0.15);
+}
+
+.hotbar-slot .slot-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+.slot-count {
+  position: absolute;
+  bottom: 1px;
+  right: 3px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* ============================================================
+   HUD – HEALTH BAR
+   ============================================================ */
+#health-bar {
+  position: fixed;
+  bottom: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 182px;
+  height: 10px;
+  background: #333;
+  border-radius: 2px;
+  z-index: 100;
+  overflow: hidden;
+  border: 1px solid #222;
+}
+
+#health-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #cc1111, var(--mc-health));
+  border-radius: 2px;
+  transition: width 0.25s ease;
+}
+
+/* ============================================================
+   HUD – DEBUG INFO
+   ============================================================ */
+#debug-info {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  color: #ccc;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6px 10px;
+  border-radius: 4px;
+  z-index: 100;
+  pointer-events: none;
+  line-height: 1.5;
+  white-space: pre;
+  backdrop-filter: blur(4px);
+}
+
+/* ============================================================
+   INVENTORY / CHEST OVERLAYS
+   ============================================================ */
+#inventory-screen,
+#chest-screen {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+}
+
+.inventory-panel,
+.chest-panel {
+  background: var(--mc-bg-panel);
+  border: 3px solid;
+  border-color: var(--mc-slot-border-light) var(--mc-slot-border-dark) var(--mc-slot-border-dark) var(--mc-slot-border-light);
+  border-radius: 4px;
+  padding: 16px 20px;
+  min-width: 320px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.panel-title {
+  font-family: var(--font-pixel);
+  font-size: 1.1rem;
+  color: var(--mc-title);
+  text-shadow: 0 0 8px rgba(85, 255, 85, 0.3);
+  margin-bottom: 12px;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.panel-subtitle {
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.panel-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  margin: 12px 0;
+}
+
+/* ---- Item Grids ---- */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 48px);
+  gap: 2px;
+  justify-content: center;
+}
+
+.item-slot {
+  width: 48px;
+  height: 48px;
+  background: var(--mc-slot-bg);
+  border: 2px solid;
+  border-color: var(--mc-slot-border-light) var(--mc-slot-border-dark) var(--mc-slot-border-dark) var(--mc-slot-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: filter 0.1s ease;
+  image-rendering: pixelated;
+}
+
+.item-slot:hover {
+  filter: brightness(1.25);
+}
+
+.item-slot .slot-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+.item-slot .slot-count {
+  position: absolute;
+  bottom: 1px;
+  right: 3px;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* ============================================================
+   TRANSITIONS & UTILITIES
+   ============================================================ */
+.fade-out {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}

@@ -10,7 +10,7 @@ export class ChunkManager {
   chunkMesher: ChunkMesher;
   scene: THREE.Scene;
   chunksToLoad: Array<{cx: number, cz: number}>;
-  loadedPerFrame: number = 2;
+  loadedPerFrame: number = 1;
 
   constructor(scene: THREE.Scene, seed: number) {
     this.scene = scene;

@@ -70,14 +70,7 @@ export class StructurePlacer {
     return group;
   }
 
-  /**
-   * Place a default set of world decorations.
-   * Uses a baseline terrain height of 25 — main.ts can reposition
-   * structures once actual terrain heights are known.
-   */
-  async placeWorldDecorations(): Promise<void> {
-    const DEFAULT_HEIGHT = 25;
-
+  async placeWorldDecorations(getHeightAt: (x: number, z: number) => number): Promise<void> {
     const decorations: Array<{
       assetId: string;
       x: number;
@@ -94,13 +87,14 @@ export class StructurePlacer {
       { assetId: 'diamond_sword', x: 12, yOffset: 2, z: 12 },
     ];
 
-    const promises = decorations.map((d) =>
-      this.placeAsset(
+    const promises = decorations.map((d) => {
+      const terrainHeight = getHeightAt(d.x, d.z);
+      return this.placeAsset(
         d.assetId,
-        new THREE.Vector3(d.x, DEFAULT_HEIGHT + d.yOffset, d.z),
+        new THREE.Vector3(d.x, terrainHeight + d.yOffset, d.z),
         d.rotation
-      )
-    );
+      );
+    });
 
     await Promise.all(promises);
   }

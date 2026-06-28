@@ -135,21 +135,14 @@ export class ChunkMesher {
               const p3 = [x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]];
               const p4 = [x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]];
               
-              if (faceDir > 0) {
-                positions.push(...p1, ...p2, ...p3, ...p4);
-              } else {
-                positions.push(...p1, ...p4, ...p3, ...p2);
-              }
+              positions.push(...p1, ...p2, ...p3, ...p4);
               
               normals.push(nx, ny, nz, nx, ny, nz, nx, ny, nz, nx, ny, nz);
               
               const fr = r * ao, fg = g * ao, fb = b * ao;
               colors.push(fr, fg, fb, fr, fg, fb, fr, fg, fb, fr, fg, fb);
               
-              let flip = false;
-              if (d === 0) flip = faceDir < 0;
-              if (d === 1) flip = faceDir > 0;
-              if (d === 2) flip = faceDir < 0;
+              const flip = faceDir < 0;
               
               if (flip) {
                 indices.push(indexCount, indexCount + 2, indexCount + 1, indexCount, indexCount + 3, indexCount + 2);

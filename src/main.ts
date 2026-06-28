@@ -77,15 +77,17 @@ async function loadAssets(): Promise<void> {
   });
   loadedCount++;
 
-  // Place default decorations
-  await structurePlacer.placeWorldDecorations();
+  const getGround = (x: number, z: number) => chunkManager.worldGenerator.getHeightAt(x, z);
+
+  // Place default decorations on terrain
+  await structurePlacer.placeWorldDecorations(getGround);
 
   // Place environments (dirt road around the spawn area, and temple in the distance)
-  await structurePlacer.placeAsset('dirt_road', new THREE.Vector3(0, 24, 0));
-  await structurePlacer.placeAsset('temple', new THREE.Vector3(40, 24, -40));
+  await structurePlacer.placeAsset('dirt_road', new THREE.Vector3(0, getGround(0, 0), 0));
+  await structurePlacer.placeAsset('temple', new THREE.Vector3(40, getGround(40, -40), -40));
   
   const seleneRot = new THREE.Euler(0, Math.PI, 0);
-  await structurePlacer.placeAsset('selene', new THREE.Vector3(-30, 24, -30), seleneRot, 2.0);
+  await structurePlacer.placeAsset('selene', new THREE.Vector3(-30, getGround(-30, -30), -30), seleneRot, 2.0);
 
   updateProgress(100);
   loadingText.textContent = 'Ready!';
@@ -101,7 +103,6 @@ function update(dt: number): void {
   if (!playing) return;
   
   playerController.update(dt);
-  chunkManager.update(playerController.position.x, playerController.position.z);
   droppedItemManager.update(dt, playerController.position, inventory);
 
   // Toggle inventory with E key
@@ -123,6 +124,10 @@ function update(dt: number): void {
 }
 
 function render(): void {
+  if (playing) {
+    chunkManager.update(playerController.position.x, playerController.position.z);
+  }
+  
   renderer.render();
 
   if (playing) {

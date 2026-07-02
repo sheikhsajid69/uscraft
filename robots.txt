@@ -1,4 +1,0 @@
-User-agent: *
-Disallow: /
-
-# USCraft is a client-side browser application and does not require search engine indexing.

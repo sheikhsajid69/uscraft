@@ -1,0 +1,26 @@
+{
+  "name": "@voxelia/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@voxelia/shared": "*",
+    "three": "^0.172.0",
+    "three-mesh-bvh": "^0.8.3",
+    "vue": "^3.5.17",
+    "socket.io-client": "^4.8.1",
+    "simplex-noise": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/three": "^0.172.0",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.0"
+  }
+}

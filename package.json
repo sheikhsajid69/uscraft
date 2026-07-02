@@ -1,20 +1,19 @@
 {
-  "name": "uscraft",
-  "private": true,
+  "name": "voxelia",
   "version": "0.1.0",
-  "type": "module",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "client",
+    "server"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev:client": "npm run dev --workspace=client",
+    "dev:server": "npm run dev --workspace=server",
+    "build": "npm run build --workspace=shared && npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
-  "dependencies": {
-    "simplex-noise": "^4.0.3",
-    "three": "^0.170.0"
-  },
-  "devDependencies": {
-    "@types/three": "^0.185.0",
-    "typescript": "^5.6.0",
-    "vite": "^6.0.0"
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

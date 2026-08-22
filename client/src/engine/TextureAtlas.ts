@@ -161,18 +161,16 @@ function px(ctx: CanvasRenderingContext2D, x: number, y: number, color: string):
 // ── GRASS_TOP ────────────────────────────────────────────────────────────────
 
 const paintGrassTop: TilePainter = (ctx, ox, oy) => {
-  const base: [number, number, number] = hexRGB(0x7cba3f);
+  const base: [number, number, number] = hexRGB(0x609935);
   for (let y = 0; y < TILE_SIZE; y++) {
     for (let x = 0; x < TILE_SIZE; x++) {
       const n = noise(x, y, 1);
-      if (n < 0.15) {
-        // darker green spots
-        px(ctx, ox + x, oy + y, rgba(base[0] - 30, base[1] - 25, base[2] - 15, 1));
-      } else if (n < 0.25) {
-        // slightly lighter
-        px(ctx, ox + x, oy + y, rgba(base[0] + 15, base[1] + 10, base[2] + 8, 1));
+      if (n < 0.18) {
+        px(ctx, ox + x, oy + y, rgba(base[0] - 22, base[1] - 20, base[2] - 12, 1));
+      } else if (n < 0.35) {
+        px(ctx, ox + x, oy + y, rgba(base[0] + 16, base[1] + 18, base[2] + 10, 1));
       } else {
-        px(ctx, ox + x, oy + y, varyColor(base, x, y, 2, 10));
+        px(ctx, ox + x, oy + y, varyColor(base, x, y, 2, 8));
       }
     }
   }
@@ -181,30 +179,32 @@ const paintGrassTop: TilePainter = (ctx, ox, oy) => {
 // ── GRASS_SIDE ───────────────────────────────────────────────────────────────
 
 const paintGrassSide: TilePainter = (ctx, ox, oy) => {
-  const dirt: [number, number, number] = hexRGB(0x8b6914);
-  const green: [number, number, number] = hexRGB(0x7cba3f);
+  const dirt: [number, number, number] = hexRGB(0x866043);
+  const green: [number, number, number] = hexRGB(0x609935);
+
+  // Irregular grass hanging drip heights per column (0-15)
+  const drips = [3, 4, 3, 5, 4, 3, 4, 5, 3, 4, 5, 4, 3, 4, 5, 3];
 
   for (let y = 0; y < TILE_SIZE; y++) {
     for (let x = 0; x < TILE_SIZE; x++) {
-      if (y < 3) {
-        // Green grass strip on top, graduated darker toward row 2
-        const darken = y * 8;
+      const dripHeight = drips[x % 16];
+      if (y < dripHeight) {
         const n = noise(x, y, 3);
-        const vary = (n - 0.5) * 16;
+        const vary = (n - 0.5) * 12;
         px(
           ctx,
           ox + x,
           oy + y,
           rgba(
-            green[0] - darken + vary,
-            green[1] - darken + vary,
-            green[2] - darken / 2 + vary,
+            green[0] + vary,
+            green[1] + vary,
+            green[2] + vary,
             1,
           ),
         );
       } else {
         // Dirt below
-        px(ctx, ox + x, oy + y, varyColor(dirt, x, y, 4, 12));
+        px(ctx, ox + x, oy + y, varyColor(dirt, x, y, 4, 10));
       }
     }
   }

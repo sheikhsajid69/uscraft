@@ -254,6 +254,26 @@ export class GameEngine {
     } catch (err) {
       console.warn('[GameEngine] Failed to load procedural trees:', err);
     }
+
+    // ── 10. Minecraft Grass Blocks (minecraft_grass_block.glb) ────────────
+    try {
+      const grassBlockOffsets = [
+        [1, 1],
+        [3, 1],
+        [-1, 1],
+        [0, 2],
+        [0, -2],
+      ];
+      for (const [gx, gz] of grassBlockOffsets) {
+        const gb = await this.assetLoader.loadModel('minecraft_grass_block.glb');
+        const gy = queryTerrainHeight(gx, gz);
+        gb.position.set(gx, gy, gz);
+        gb.scale.setScalar(1.0);
+        this.renderer.scene.add(gb);
+      }
+    } catch (err) {
+      console.warn('[GameEngine] Failed to load minecraft_grass_block.glb:', err);
+    }
   }
 
   /**

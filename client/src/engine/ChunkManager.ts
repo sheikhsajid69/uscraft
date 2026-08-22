@@ -237,13 +237,9 @@ function generateChunkData(cx: number, cz: number): Uint8Array {
         } else if (y < height - 4) {
           blocks[idx] = BlockId.STONE;
         } else if (y < height) {
-          blocks[idx] = inAnchor || nearAnchorEdge
-            ? BlockId.DIRT
-            : biomeDef.subsurface;
+          blocks[idx] = biomeDef.subsurface;
         } else if (y === height) {
-          blocks[idx] = inAnchor || nearAnchorEdge
-            ? BlockId.DIRT
-            : biomeDef.surface;
+          blocks[idx] = biomeDef.surface;
         } else if (y <= SEA_LEVEL && y > height) {
           blocks[idx] = BlockId.WATER;
         } else {

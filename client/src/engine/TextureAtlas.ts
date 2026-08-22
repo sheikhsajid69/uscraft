@@ -57,6 +57,8 @@ const BLOCK_FACE_TILES: Record<number, readonly [number, number, number, number,
   [BlockId.PLANKS]:      [TILE_PLANKS,    TILE_PLANKS,     TILE_PLANKS,     TILE_PLANKS,     TILE_PLANKS,     TILE_PLANKS],
   [BlockId.GLASS]:       [TILE_GLASS,     TILE_GLASS,      TILE_GLASS,      TILE_GLASS,      TILE_GLASS,      TILE_GLASS],
   [BlockId.TORCH_BLOCK]: [TILE_TORCH,     TILE_TORCH,      TILE_TORCH,      TILE_TORCH,      TILE_TORCH,      TILE_TORCH],
+  [BlockId.SWORD]:       [TILE_STONE,     TILE_STONE,      TILE_STONE,      TILE_STONE,      TILE_STONE,      TILE_STONE],
+  [BlockId.MATCHLOCK]:   [TILE_WOOD_SIDE, TILE_WOOD_SIDE,  TILE_WOOD_SIDE,  TILE_WOOD_SIDE,  TILE_WOOD_SIDE,  TILE_WOOD_SIDE],
 };
 
 // ── Public types ─────────────────────────────────────────────────────────────

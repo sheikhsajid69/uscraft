@@ -6,6 +6,7 @@ import {
   MeshBasicMaterial,
   LineSegments,
   WireframeGeometry,
+  Object3D,
 } from 'three';
 import { BlockId, BLOCK_DEFS, CHUNK_HEIGHT } from '@voxelia/shared';
 import type { ChunkManager } from './ChunkManager';
@@ -14,7 +15,10 @@ import type { AudioSystem } from './AudioSystem';
 import type { ParticleSystem } from './ParticleSystem';
 import type { NetworkClient } from './NetworkClient';
 import type { InputController } from './InputController';
+import type { MobSystem } from './MobSystem';
+import type { HeldItemSystem } from './HeldItemSystem';
 import { getActiveBlockId, consumeActiveItem, inventoryState } from '../ui/inventoryStore';
+import { gameStats } from '../ui/stats';
 
 export interface RaycastHit {
   readonly wx: number;
@@ -24,10 +28,24 @@ export interface RaycastHit {
   readonly normal: Vector3;
 }
 
+export interface InteractiveProp {
+  id: string;
+  type: 'workbench' | 'bed' | 'chest' | 'altar';
+  position: Vector3;
+  object: Object3D;
+  radius: number;
+}
+
 export class BlockInteraction {
   public currentHit: RaycastHit | null = null;
+  public currentProp: InteractiveProp | null = null;
   private readonly wireframeBox: LineSegments;
   private network: NetworkClient | undefined;
+  private mobSystem: MobSystem | undefined;
+  private heldItemSystem: HeldItemSystem | undefined;
+  public onSleepCallback?: () => void;
+
+  private readonly props: InteractiveProp[] = [];
 
   private readonly scene: Scene;
   private readonly chunks: ChunkManager;
@@ -46,7 +64,9 @@ export class BlockInteraction {
     input: InputController,
     audio: AudioSystem,
     particles: ParticleSystem,
-    network?: NetworkClient
+    network?: NetworkClient,
+    mobSystem?: MobSystem,
+    heldItemSystem?: HeldItemSystem
   ) {
     this.scene = scene;
     this.chunks = chunks;
@@ -55,6 +75,8 @@ export class BlockInteraction {
     this.audio = audio;
     this.particles = particles;
     this.network = network;
+    this.mobSystem = mobSystem;
+    this.heldItemSystem = heldItemSystem;
 
     const wireGeom = new WireframeGeometry(new BoxGeometry(1.01, 1.01, 1.01));
     const wireMat = new MeshBasicMaterial({ color: 0x000000, wireframe: true });
@@ -66,6 +88,15 @@ export class BlockInteraction {
     window.addEventListener('contextmenu', this.onContextMenu);
   }
 
+  public registerInteractiveProp(prop: InteractiveProp): void {
+    this.props.push(prop);
+  }
+
+  public setSystems(mobSystem: MobSystem, heldItemSystem: HeldItemSystem): void {
+    this.mobSystem = mobSystem;
+    this.heldItemSystem = heldItemSystem;
+  }
+
   public setNetworkClient(net: NetworkClient): void {
     this.network = net;
   }
@@ -73,10 +104,33 @@ export class BlockInteraction {
   public update(dt: number): void {
     if (!this.input.isPointerLocked() || inventoryState.isOpen) {
       this.currentHit = null;
+      this.currentProp = null;
+      this.wireframeBox.visible = false;
+      gameStats.interactionPrompt = null;
+      return;
+    }
+
+    const origin = this.player.getPosition();
+    const direction = this.player.getLookVector();
+
+    // Check interactive props first
+    this.currentProp = this.raycastProps(origin, direction, 4.5);
+    if (this.currentProp) {
+      if (this.currentProp.type === 'workbench') {
+        gameStats.interactionPrompt = '[Right Click] Open Crafting Table (3×3)';
+      } else if (this.currentProp.type === 'bed') {
+        gameStats.interactionPrompt = '[Right Click] Sleep in Bed';
+      } else if (this.currentProp.type === 'chest') {
+        gameStats.interactionPrompt = '[Right Click] Open Storage Chest';
+      } else if (this.currentProp.type === 'altar') {
+        gameStats.interactionPrompt = 'Ancient Selene Altar';
+      }
+      this.currentHit = null;
       this.wireframeBox.visible = false;
       return;
     }
 
+    // Check voxel blocks
     this.currentHit = this.raycast(5.0);
     if (this.currentHit) {
       this.wireframeBox.position.set(
@@ -85,9 +139,31 @@ export class BlockInteraction {
         this.currentHit.wz + 0.5
       );
       this.wireframeBox.visible = true;
+      gameStats.interactionPrompt = null;
     } else {
       this.wireframeBox.visible = false;
+      gameStats.interactionPrompt = null;
     }
+  }
+
+  private raycastProps(origin: Vector3, direction: Vector3, maxDist: number): InteractiveProp | null {
+    let closestDist = maxDist;
+    let closestProp: InteractiveProp | null = null;
+
+    for (const prop of this.props) {
+      const toProp = prop.position.clone().sub(origin);
+      const proj = toProp.dot(direction);
+
+      if (proj > 0 && proj < closestDist) {
+        const perp = toProp.clone().sub(direction.clone().multiplyScalar(proj)).length();
+        if (perp <= prop.radius) {
+          closestDist = proj;
+          closestProp = prop;
+        }
+      }
+    }
+
+    return closestProp;
   }
 
   private raycast(maxDistance: number): RaycastHit | null {
@@ -159,25 +235,68 @@ export class BlockInteraction {
   }
 
   private handleMouseDown(e: MouseEvent): void {
-    if (!this.input.isPointerLocked() || inventoryState.isOpen || !this.currentHit) return;
+    if (!this.input.isPointerLocked() || inventoryState.isOpen) return;
+
+    const origin = this.player.getPosition();
+    const direction = this.player.getLookVector();
+    const activeBlockId = getActiveBlockId();
 
     if (e.button === 0) {
-      // Left click: Break block
-      const { wx, wy, wz, blockId } = this.currentHit;
-      const def = BLOCK_DEFS[blockId];
-      if (def && def.breakable === false) return;
+      // ── Left Click: Attack Mob or Break Block ────────────────────────────
+      if (activeBlockId === BlockId.MATCHLOCK) {
+        this.heldItemSystem?.triggerRecoil();
+        this.audio.playGunshot();
+      } else {
+        this.heldItemSystem?.triggerSwing();
+        if (activeBlockId === BlockId.SWORD) {
+          this.audio.playSwordSwing();
+        }
+      }
 
-      const color = def ? def.color : 0x888888;
-      this.particles.spawnBlockBreakParticles(new Vector3(wx + 0.5, wy + 0.5, wz + 0.5), color);
-      this.audio.playBlockBreak();
-      this.chunks.setBlock(wx, wy, wz, BlockId.AIR);
-      this.network?.sendBlockEdit(wx, wy, wz, BlockId.AIR);
-      this.currentHit = null;
-      this.wireframeBox.visible = false;
+      // Check mob hit
+      const mobHit = this.mobSystem?.raycastMob(origin, direction, activeBlockId === BlockId.MATCHLOCK ? 25.0 : 4.5);
+      if (mobHit) {
+        const damage = activeBlockId === BlockId.SWORD ? 12 : activeBlockId === BlockId.MATCHLOCK ? 20 : 4;
+        this.mobSystem?.damageMob(mobHit.mob.id, damage, direction);
+        return;
+      }
+
+      // Break voxel block
+      if (this.currentHit) {
+        const { wx, wy, wz, blockId } = this.currentHit;
+        const def = BLOCK_DEFS[blockId];
+        if (def && def.breakable === false) return;
+
+        const color = def ? def.color : 0x888888;
+        this.particles.spawnBlockBreakParticles(new Vector3(wx + 0.5, wy + 0.5, wz + 0.5), color);
+        this.audio.playBlockBreak();
+        this.chunks.setBlock(wx, wy, wz, BlockId.AIR);
+        this.network?.sendBlockEdit(wx, wy, wz, BlockId.AIR);
+        this.currentHit = null;
+        this.wireframeBox.visible = false;
+      }
     } else if (e.button === 2) {
-      // Right click: Place block
-      const activeBlockId = getActiveBlockId();
-      if (activeBlockId === BlockId.AIR) return;
+      // ── Right Click: Interact with Prop or Place Block ───────────────────
+      if (this.currentProp) {
+        if (this.currentProp.type === 'workbench') {
+          inventoryState.nearCraftingTable = true;
+          inventoryState.isOpen = true;
+          document.exitPointerLock?.();
+          return;
+        } else if (this.currentProp.type === 'bed') {
+          this.audio.playSleep();
+          this.onSleepCallback?.();
+          return;
+        } else if (this.currentProp.type === 'chest') {
+          inventoryState.nearCraftingTable = false;
+          inventoryState.isOpen = true;
+          document.exitPointerLock?.();
+          return;
+        }
+      }
+
+      if (!this.currentHit) return;
+      if (activeBlockId === BlockId.AIR || activeBlockId === BlockId.SWORD || activeBlockId === BlockId.MATCHLOCK) return;
 
       const { wx, wy, wz, normal } = this.currentHit;
       const px = wx + normal.x;
@@ -200,6 +319,7 @@ export class BlockInteraction {
       const def = BLOCK_DEFS[activeBlockId];
       const color = def ? def.color : 0x888888;
       this.audio.playBlockPlace();
+      this.heldItemSystem?.triggerSwing();
       this.particles.spawnBlockPlaceParticles(new Vector3(px + 0.5, py + 0.5, pz + 0.5), color);
       this.chunks.setBlock(px, py, pz, activeBlockId);
       this.network?.sendBlockEdit(px, py, pz, activeBlockId);

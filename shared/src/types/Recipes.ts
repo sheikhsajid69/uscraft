@@ -111,6 +111,30 @@ export const CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     },
     requiresCraftingTable: true,
   },
+  {
+    id: "stone_and_wood_to_sword",
+    name: "Diamond Sword",
+    width: 1,
+    height: 3,
+    pattern: [BlockId.STONE, BlockId.STONE, BlockId.WOOD],
+    output: {
+      blockId: BlockId.SWORD,
+      count: 1,
+    },
+    requiresCraftingTable: true,
+  },
+  {
+    id: "cobble_wood_to_matchlock",
+    name: "Matchlock Gun",
+    width: 2,
+    height: 2,
+    pattern: [BlockId.COBBLESTONE, BlockId.COBBLESTONE, BlockId.WOOD, null],
+    output: {
+      blockId: BlockId.MATCHLOCK,
+      count: 1,
+    },
+    requiresCraftingTable: true,
+  },
 ];
 
 export interface NormalizedGrid {

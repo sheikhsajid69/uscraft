@@ -1,4 +1,4 @@
-/** Numeric identifier for every block type in the game. */
+/** Numeric identifier for every block type and item in the game. */
 export enum BlockId {
   AIR = 0,
   GRASS = 1,
@@ -14,6 +14,8 @@ export enum BlockId {
   PLANKS = 11,
   GLASS = 12,
   TORCH_BLOCK = 13,
+  SWORD = 14,
+  MATCHLOCK = 15,
 }
 
 /** Static metadata describing a block type's visual and physical properties. */
@@ -129,5 +131,19 @@ export const BLOCK_DEFS: Readonly<Record<BlockId, BlockDefinition>> = {
     transparent: true,
     solid: false,
     breakable: true,
+  },
+  [BlockId.SWORD]: {
+    name: "Diamond Sword",
+    color: 0x33ebcb,
+    transparent: true,
+    solid: false,
+    breakable: false,
+  },
+  [BlockId.MATCHLOCK]: {
+    name: "Matchlock Gun",
+    color: 0x8a5530,
+    transparent: true,
+    solid: false,
+    breakable: false,
   },
 } as const;

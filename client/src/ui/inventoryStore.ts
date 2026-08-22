@@ -11,15 +11,15 @@ export const inventoryState = reactive({
   nearCraftingTable: false,
   activeSlotIndex: 0,
   hotbar: [
-    { blockId: BlockId.COBBLESTONE, count: 64 },
-    { blockId: BlockId.DIRT, count: 64 },
-    { blockId: BlockId.STONE, count: 64 },
+    { blockId: BlockId.SWORD, count: 1 },
+    { blockId: BlockId.MATCHLOCK, count: 1 },
     { blockId: BlockId.WOOD, count: 64 },
     { blockId: BlockId.PLANKS, count: 64 },
-    { blockId: BlockId.GLASS, count: 64 },
+    { blockId: BlockId.COBBLESTONE, count: 64 },
+    { blockId: BlockId.STONE, count: 64 },
     { blockId: BlockId.TORCH_BLOCK, count: 64 },
-    { blockId: BlockId.SAND, count: 64 },
-    { blockId: BlockId.LEAVES, count: 64 },
+    { blockId: BlockId.GLASS, count: 64 },
+    { blockId: BlockId.DIRT, count: 64 },
   ] as (ItemStack | null)[],
   backpack: Array.from({ length: 27 }, () => null) as (ItemStack | null)[],
   craftingGrid: Array.from({ length: 9 }, () => null) as (ItemStack | null)[],
@@ -36,6 +36,9 @@ export function getActiveBlockId(): BlockId {
 export function consumeActiveItem(): void {
   const item = inventoryState.hotbar[inventoryState.activeSlotIndex];
   if (item) {
+    if (item.blockId === BlockId.SWORD || item.blockId === BlockId.MATCHLOCK) {
+      return; // Weapons don't get consumed on place
+    }
     item.count--;
     if (item.count <= 0) {
       inventoryState.hotbar[inventoryState.activeSlotIndex] = null;
@@ -67,7 +70,6 @@ export function updateCraftingOutput(): void {
 export function craftItem(): void {
   if (!inventoryState.craftingOutput) return;
 
-  // Add to hotbar or backpack
   const out = inventoryState.craftingOutput;
   let added = false;
   for (let i = 0; i < 9; i++) {
@@ -118,8 +120,16 @@ export function getBlockColorHex(blockId: BlockId): string {
   return `#${hex}`;
 }
 
-/** Get block display name. */
+/** Get block or weapon display name. */
 export function getBlockName(blockId: BlockId): string {
   const def = BLOCK_DEFS[blockId];
   return def ? def.name : 'Unknown';
+}
+
+/** Get item emoji or icon symbol. */
+export function getBlockIcon(blockId: BlockId): string {
+  if (blockId === BlockId.SWORD) return '⚔️';
+  if (blockId === BlockId.MATCHLOCK) return '🔫';
+  if (blockId === BlockId.TORCH_BLOCK) return '🕯️';
+  return '';
 }

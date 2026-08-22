@@ -332,6 +332,104 @@ export class AudioSystem {
   }
 
   /**
+   * Plays a sword whoosh / swing sound.
+   */
+  public playSwordSwing(): void {
+    if (!this.enabled) return;
+    this.initContext();
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch (e) {}
+  }
+
+  /**
+   * Plays a matchlock rifle gunshot: sharp crack followed by boom.
+   */
+  public playGunshot(): void {
+    if (!this.enabled) return;
+    this.initContext();
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    try {
+      const now = this.ctx.currentTime;
+      const noiseBuffer = this.getNoiseBuffer();
+      if (noiseBuffer) {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1800, now);
+        filter.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now, 0, 0.3);
+      }
+    } catch (e) {}
+  }
+
+  /**
+   * Plays a blunt hit impact sound for damaging entities.
+   */
+  public playHit(): void {
+    if (!this.enabled) return;
+    this.initContext();
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } catch (e) {}
+  }
+
+  /**
+   * Plays a gentle sleep chime when using the bed.
+   */
+  public playSleep(): void {
+    if (!this.enabled) return;
+    this.initContext();
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    try {
+      const now = this.ctx.currentTime;
+      [330, 440, 550, 660].forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+        gain.gain.setValueAtTime(0.15, now + i * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        osc.start(now + i * 0.1);
+        osc.stop(now + i * 0.1 + 0.3);
+      });
+    } catch (e) {}
+  }
+
+  /**
    * Toggles sound on or off. Can accept an optional boolean parameter to explicitly enable or disable.
    */
   public toggleSound(enable?: boolean): void {

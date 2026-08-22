@@ -6,6 +6,7 @@ import {
   craftItem,
   getBlockColorHex,
   getBlockName,
+  getBlockIcon,
   type ItemStack,
 } from './inventoryStore';
 
@@ -74,7 +75,6 @@ function closeInventory() {
   for (let i = 0; i < 9; i++) {
     const item = inventoryState.craftingGrid[i];
     if (item) {
-      // Find empty slot in hotbar or backpack
       let moved = false;
       for (let j = 0; j < 9; j++) {
         if (!inventoryState.hotbar[j]) {
@@ -147,12 +147,17 @@ onUnmounted(() => {
                 }"
                 @click="handleSlotClick('crafting', idx)"
               >
-                <div
-                  v-if="slot"
-                  class="block-icon"
-                  :style="{ backgroundColor: getBlockColorHex(slot.blockId) }"
-                  :title="getBlockName(slot.blockId)"
-                ></div>
+                <div v-if="slot">
+                  <span v-if="getBlockIcon(slot.blockId)" class="emoji-icon" :title="getBlockName(slot.blockId)">
+                    {{ getBlockIcon(slot.blockId) }}
+                  </span>
+                  <div
+                    v-else
+                    class="block-icon"
+                    :style="{ backgroundColor: getBlockColorHex(slot.blockId) }"
+                    :title="getBlockName(slot.blockId)"
+                  ></div>
+                </div>
                 <div v-if="slot && slot.count > 1" class="item-count">{{ slot.count }}</div>
               </div>
             </div>
@@ -160,12 +165,21 @@ onUnmounted(() => {
             <div class="craft-arrow">➔</div>
 
             <div class="slot output-slot" @click="handleCraftClick">
-              <div
-                v-if="inventoryState.craftingOutput"
-                class="block-icon"
-                :style="{ backgroundColor: getBlockColorHex(inventoryState.craftingOutput.blockId) }"
-                :title="getBlockName(inventoryState.craftingOutput.blockId)"
-              ></div>
+              <div v-if="inventoryState.craftingOutput">
+                <span
+                  v-if="getBlockIcon(inventoryState.craftingOutput.blockId)"
+                  class="emoji-icon"
+                  :title="getBlockName(inventoryState.craftingOutput.blockId)"
+                >
+                  {{ getBlockIcon(inventoryState.craftingOutput.blockId) }}
+                </span>
+                <div
+                  v-else
+                  class="block-icon"
+                  :style="{ backgroundColor: getBlockColorHex(inventoryState.craftingOutput.blockId) }"
+                  :title="getBlockName(inventoryState.craftingOutput.blockId)"
+                ></div>
+              </div>
               <div
                 v-if="inventoryState.craftingOutput && inventoryState.craftingOutput.count > 1"
                 class="item-count"
@@ -187,12 +201,17 @@ onUnmounted(() => {
               :class="{ selected: selected && selected.type === 'backpack' && selected.index === idx }"
               @click="handleSlotClick('backpack', idx)"
             >
-              <div
-                v-if="slot"
-                class="block-icon"
-                :style="{ backgroundColor: getBlockColorHex(slot.blockId) }"
-                :title="getBlockName(slot.blockId)"
-              ></div>
+              <div v-if="slot">
+                <span v-if="getBlockIcon(slot.blockId)" class="emoji-icon" :title="getBlockName(slot.blockId)">
+                  {{ getBlockIcon(slot.blockId) }}
+                </span>
+                <div
+                  v-else
+                  class="block-icon"
+                  :style="{ backgroundColor: getBlockColorHex(slot.blockId) }"
+                  :title="getBlockName(slot.blockId)"
+                ></div>
+              </div>
               <div v-if="slot && slot.count > 1" class="item-count">{{ slot.count }}</div>
             </div>
           </div>
@@ -207,12 +226,17 @@ onUnmounted(() => {
               @click="handleSlotClick('hotbar', idx)"
             >
               <div class="slot-number">{{ idx + 1 }}</div>
-              <div
-                v-if="slot"
-                class="block-icon"
-                :style="{ backgroundColor: getBlockColorHex(slot.blockId) }"
-                :title="getBlockName(slot.blockId)"
-              ></div>
+              <div v-if="slot">
+                <span v-if="getBlockIcon(slot.blockId)" class="emoji-icon" :title="getBlockName(slot.blockId)">
+                  {{ getBlockIcon(slot.blockId) }}
+                </span>
+                <div
+                  v-else
+                  class="block-icon"
+                  :style="{ backgroundColor: getBlockColorHex(slot.blockId) }"
+                  :title="getBlockName(slot.blockId)"
+                ></div>
+              </div>
               <div v-if="slot && slot.count > 1" class="item-count">{{ slot.count }}</div>
             </div>
           </div>
@@ -380,6 +404,10 @@ h3 {
   border: 1px solid rgba(0, 0, 0, 0.4);
   border-radius: 3px;
   box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.25), inset -2px -2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.emoji-icon {
+  font-size: 20px;
 }
 
 .item-count {

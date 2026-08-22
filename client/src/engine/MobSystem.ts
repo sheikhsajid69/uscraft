@@ -1,10 +1,21 @@
-import { Scene, Vector3, Object3D, Mesh, MeshBasicMaterial, BoxGeometry } from 'three';
+import {
+  Scene,
+  Vector3,
+  Object3D,
+  Mesh,
+  MeshBasicMaterial,
+  BoxGeometry,
+  SphereGeometry,
+} from 'three';
 import { BlockId, CHUNK_HEIGHT } from '@voxelia/shared';
 import type { ChunkManager } from './ChunkManager';
 import { queryTerrainHeight } from './ChunkManager';
 import type { PlayerController } from './PlayerController';
 import { AssetLoader } from './AssetLoader';
 import { audio } from './AudioSystem';
+import type { ParticleSystem } from './ParticleSystem';
+import { damagePlayer } from '../ui/stats';
+import { inventoryState } from '../ui/inventoryStore';
 
 export type MobType = 'fox' | 'enderman' | 'ghast' | 'warden';
 
@@ -18,21 +29,40 @@ export interface MobEntity {
   flying: boolean;
   state: 'idle' | 'roam' | 'chase' | 'flee';
   stateTimer: number;
+  health: number;
+  maxHealth: number;
+  hitFlashTimer: number;
+  attackCooldown: number;
+}
+
+export interface MobProjectile {
+  mesh: Mesh;
+  position: Vector3;
+  velocity: Vector3;
+  life: number;
 }
 
 export class MobSystem {
   private readonly mobs = new Map<string, MobEntity>();
+  private readonly projectiles: MobProjectile[] = [];
   private readonly scene: Scene;
   private readonly chunks: ChunkManager;
   private readonly player: PlayerController;
+  private readonly particles?: ParticleSystem;
   private readonly loader = new AssetLoader();
   private spawnTimer = 0;
   private nextId = 1;
 
-  constructor(scene: Scene, chunks: ChunkManager, player: PlayerController) {
+  constructor(
+    scene: Scene,
+    chunks: ChunkManager,
+    player: PlayerController,
+    particles?: ParticleSystem
+  ) {
     this.scene = scene;
     this.chunks = chunks;
     this.player = player;
+    this.particles = particles;
   }
 
   public async spawnMob(type: MobType, wx: number, wy: number, wz: number): Promise<MobEntity | null> {
@@ -40,24 +70,29 @@ export class MobSystem {
     let scale = 1.0;
     let flying = false;
     let speed = 3.0;
+    let maxHealth = 20;
 
     if (type === 'fox') {
       url = '/assets/models/fox_minecraft.glb';
       scale = 0.5;
       speed = 3.8;
+      maxHealth = 10;
     } else if (type === 'enderman') {
       url = '/assets/models/enderman_minecraft_sonic_racing_crossworlds.glb';
       scale = 1.2;
       speed = 3.5;
+      maxHealth = 40;
     } else if (type === 'ghast') {
       url = '/assets/models/ghast_minecraft_sonic_racing_crossworlds.glb';
       scale = 1.5;
       speed = 2.5;
       flying = true;
+      maxHealth = 20;
     } else if (type === 'warden') {
       url = '/assets/models/minecraft_warden.glb';
       scale = 1.1;
       speed = 2.2;
+      maxHealth = 100;
     }
 
     let model: Object3D;
@@ -89,6 +124,10 @@ export class MobSystem {
       flying,
       state: 'idle',
       stateTimer: 2 + Math.random() * 2,
+      health: maxHealth,
+      maxHealth,
+      hitFlashTimer: 0,
+      attackCooldown: 1.0,
     };
 
     this.mobs.set(mob.id, mob);
@@ -105,8 +144,22 @@ export class MobSystem {
 
     const playerPos = this.player.getPosition();
 
-    for (const mob of this.mobs.values()) {
+    // ── Update Mobs ────────────────────────────────────────────────────────
+    for (const [id, mob] of this.mobs) {
       mob.stateTimer -= dt;
+      mob.attackCooldown -= dt;
+
+      // Handle damage hit-flash visual
+      if (mob.hitFlashTimer > 0) {
+        mob.hitFlashTimer -= dt;
+        if (mob.hitFlashTimer <= 0) {
+          mob.model.traverse((child) => {
+            if (child instanceof Mesh && child.material && 'color' in child.material) {
+              child.material.color.setHex(0xffffff);
+            }
+          });
+        }
+      }
 
       // Distance to player
       const distToPlayer = mob.position.distanceTo(playerPos);
@@ -115,7 +168,6 @@ export class MobSystem {
       if (mob.state === 'idle' && mob.stateTimer <= 0) {
         mob.state = 'roam';
         mob.stateTimer = 4 + Math.random() * 3;
-        // Pick random roam target
         const angle = Math.random() * Math.PI * 2;
         const dist = 4 + Math.random() * 8;
         const tx = mob.position.x + Math.cos(angle) * dist;
@@ -129,17 +181,33 @@ export class MobSystem {
       }
 
       // Check hostility / reaction to player
-      if (distToPlayer < 10) {
-        if (mob.type === 'warden' || (mob.type === 'enderman' && isNight)) {
+      if (distToPlayer < 12) {
+        if (mob.type === 'warden' || (mob.type === 'enderman' && (isNight || mob.health < mob.maxHealth))) {
           mob.state = 'chase';
           mob.targetPos = playerPos.clone();
+
+          // Melee attack player if close
+          if (distToPlayer < 2.0 && mob.attackCooldown <= 0) {
+            mob.attackCooldown = 1.2;
+            damagePlayer(mob.type === 'warden' ? 8 : 4);
+            audio.playHit();
+          }
+        } else if (mob.type === 'ghast') {
+          mob.state = 'chase';
+          mob.targetPos = new Vector3(playerPos.x, playerPos.y + 8, playerPos.z);
+
+          // Ghast fires fireball
+          if (distToPlayer < 25 && mob.attackCooldown <= 0) {
+            mob.attackCooldown = 3.5;
+            this.spawnGhastFireball(mob.position, playerPos);
+          }
         } else if (mob.type === 'fox') {
           mob.state = 'flee';
           const awayDir = mob.position.clone().sub(playerPos).normalize();
           mob.targetPos = mob.position.clone().addScaledVector(awayDir, 6);
         }
       } else if (mob.state === 'chase' || mob.state === 'flee') {
-        if (distToPlayer > 15) {
+        if (distToPlayer > 18) {
           mob.state = 'idle';
           mob.targetPos = null;
         }
@@ -148,14 +216,13 @@ export class MobSystem {
       // Movement execution
       if (mob.targetPos) {
         const moveDir = mob.targetPos.clone().sub(mob.position);
-        if (!mob.flying) moveDir.y = 0; // horizontal only for ground mobs
+        if (!mob.flying) moveDir.y = 0;
         const dist = moveDir.length();
 
         if (dist > 0.5) {
           moveDir.normalize();
           mob.position.addScaledVector(moveDir, mob.speed * dt);
 
-          // Rotate model to face move direction
           const targetYaw = Math.atan2(moveDir.x, moveDir.z);
           let diff = targetYaw - mob.model.rotation.y;
           while (diff < -Math.PI) diff += Math.PI * 2;
@@ -173,10 +240,148 @@ export class MobSystem {
         mob.position.y += (groundY - mob.position.y) * Math.min(1, dt * 10);
       }
 
-      // Idle breathing / bobbing
       mob.model.position.copy(mob.position);
       if (mob.flying) {
         mob.model.position.y += Math.sin(performance.now() * 0.003 + mob.id.length) * 0.3;
+      }
+    }
+
+    // ── Update Projectiles ──────────────────────────────────────────────────
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      p.life -= dt;
+      p.position.addScaledVector(p.velocity, dt);
+      p.mesh.position.copy(p.position);
+
+      // Check hit with player
+      if (p.position.distanceTo(playerPos) < 1.5) {
+        damagePlayer(5);
+        audio.playBlockBreak();
+        this.particles?.spawnBlockBreakParticles(p.position, 0xff4400);
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        this.projectiles.splice(i, 1);
+        continue;
+      }
+
+      // Expire
+      if (p.life <= 0) {
+        this.particles?.spawnBlockBreakParticles(p.position, 0x888888);
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        this.projectiles.splice(i, 1);
+      }
+    }
+  }
+
+  private spawnGhastFireball(from: Vector3, to: Vector3): void {
+    const dir = to.clone().sub(from).normalize();
+    const geom = new SphereGeometry(0.35, 8, 8);
+    const mat = new MeshBasicMaterial({ color: 0xff3300 });
+    const mesh = new Mesh(geom, mat);
+    mesh.position.copy(from);
+    this.scene.add(mesh);
+
+    this.projectiles.push({
+      mesh,
+      position: from.clone(),
+      velocity: dir.multiplyScalar(10),
+      life: 5.0,
+    });
+    audio.playMobGrowl();
+  }
+
+  /**
+   * Raycasts against active mobs to detect weapon / melee attacks.
+   */
+  public raycastMob(
+    origin: Vector3,
+    direction: Vector3,
+    maxDistance = 5.0
+  ): { mob: MobEntity; point: Vector3 } | null {
+    let closestDist = maxDistance;
+    let closestMob: MobEntity | null = null;
+    let hitPoint = new Vector3();
+
+    for (const mob of this.mobs.values()) {
+      const mobPos = mob.position.clone();
+      mobPos.y += mob.flying ? 0 : 0.8; // Center of mass
+      const toMob = mobPos.clone().sub(origin);
+      const proj = toMob.dot(direction);
+
+      if (proj > 0 && proj < closestDist) {
+        const perpDist = toMob.clone().sub(direction.clone().multiplyScalar(proj)).length();
+        const hitboxRadius = mob.type === 'warden' ? 1.4 : mob.type === 'ghast' ? 1.8 : 0.9;
+        if (perpDist <= hitboxRadius) {
+          closestDist = proj;
+          closestMob = mob;
+          hitPoint = origin.clone().addScaledVector(direction, proj);
+        }
+      }
+    }
+
+    return closestMob ? { mob: closestMob, point: hitPoint } : null;
+  }
+
+  /**
+   * Applies damage, hit flash, knockback, and death loot drops to a mob.
+   */
+  public damageMob(mobId: string, amount: number, knockbackDir?: Vector3): void {
+    const mob = this.mobs.get(mobId);
+    if (!mob) return;
+
+    mob.health -= amount;
+    mob.hitFlashTimer = 0.25;
+
+    // Red tint on materials
+    mob.model.traverse((child) => {
+      if (child instanceof Mesh && child.material && 'color' in child.material) {
+        child.material.color.setHex(0xff3333);
+      }
+    });
+
+    // Knockback
+    if (knockbackDir) {
+      mob.position.addScaledVector(knockbackDir.normalize(), 1.2);
+    }
+
+    audio.playHit();
+    this.particles?.spawnBlockBreakParticles(mob.position, 0xcc0000);
+
+    // Enderman teleport evasion on damage
+    if (mob.type === 'enderman' && mob.health > 0) {
+      const angle = Math.random() * Math.PI * 2;
+      mob.position.x += Math.cos(angle) * 8;
+      mob.position.z += Math.sin(angle) * 8;
+      mob.position.y = this.findGroundY(mob.position.x, mob.position.z);
+      this.particles?.spawnBlockBreakParticles(mob.position, 0x8800cc);
+    }
+
+    // Mob Death
+    if (mob.health <= 0) {
+      this.scene.remove(mob.model);
+      this.mobs.delete(mobId);
+      this.particles?.spawnBlockBreakParticles(mob.position, 0xffaa00);
+
+      // Reward loot drop directly into hotbar
+      const lootBlockId =
+        mob.type === 'fox'
+          ? BlockId.WOOD
+          : mob.type === 'enderman'
+          ? BlockId.GLASS
+          : mob.type === 'ghast'
+          ? BlockId.TORCH_BLOCK
+          : BlockId.STONE;
+
+      for (let i = 0; i < 9; i++) {
+        const slot = inventoryState.hotbar[i];
+        if (slot && slot.blockId === lootBlockId && slot.count < 64) {
+          slot.count += 2;
+          break;
+        } else if (!slot) {
+          inventoryState.hotbar[i] = { blockId: lootBlockId, count: 2 };
+          break;
+        }
       }
     }
   }
@@ -217,5 +422,10 @@ export class MobSystem {
       this.scene.remove(mob.model);
     }
     this.mobs.clear();
+    for (const p of this.projectiles) {
+      this.scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+    }
+    this.projectiles.length = 0;
   }
 }

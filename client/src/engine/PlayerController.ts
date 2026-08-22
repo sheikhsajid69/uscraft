@@ -53,8 +53,8 @@ export class PlayerController {
   private pitch: number;
   private grounded: boolean;
   private crouching: boolean;
-  private sprinting: boolean = false;
-  private isMoving: boolean = false;
+  public sprinting: boolean = false;
+  public isMoving: boolean = false;
   private headBobTimer: number = 0;
   private targetFov: number = 70;
 

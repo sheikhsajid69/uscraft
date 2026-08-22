@@ -121,8 +121,8 @@ export class InputController {
   private readonly onMouseMove = (e: MouseEvent): void => {
     // Only accumulate when pointer is locked
     if (document.pointerLockElement) {
-      this.mouseDeltaX += e.movementX;
-      this.mouseDeltaY += e.movementY;
+      this.mouseDeltaX += e.movementX * 0.0012;
+      this.mouseDeltaY += e.movementY * 0.0012;
     }
   };
 

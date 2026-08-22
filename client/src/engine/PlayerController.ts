@@ -23,7 +23,7 @@ const _scratchQuat = new Quaternion();
 // ── Constants ──────────────────────────────────────────────────────────
 const GRAVITY = 20; // m/s²
 const JUMP_IMPULSE = 8; // m/s upward
-const TERMINAL_VELOCITY = 50; // m/s downward (positive value, applied as negative)
+const TERMINAL_VELOCITY = 50; // m/s downward
 const WALK_SPEED = 4.3; // m/s
 const SPRINT_SPEED = 5.6; // m/s
 const CROUCH_SPEED_FACTOR = 0.3; // 70 % slower
@@ -34,18 +34,18 @@ const PLAYER_RADIUS = 0.3;
 const PITCH_LIMIT = (89 * Math.PI) / 180; // ±89° in radians
 
 // Third-person spring-arm
-const TP_DISTANCE = 5; // units behind
-const TP_HEIGHT = 3; // units above head
+const TP_DISTANCE = 4.5; // units behind / in front
+const TP_HEIGHT = 2.4; // units above head
 const TP_CAMERA_TERRAIN_PAD = 1; // min height above terrain for camera
 
 // Camera transition
-const TRANSITION_DURATION = 0.2; // seconds
+const TRANSITION_DURATION = 0.18; // seconds
 
-type CameraMode = 'first_person' | 'third_person';
+export type CameraMode = 'first_person' | 'third_person' | 'second_person';
 
 export class PlayerController {
   public position: Vector3;
-  public cameraMode: CameraMode;
+  public cameraMode: CameraMode = 'first_person';
 
   // ── Internal state ─────────────────────────────────────────────────
   private velocity: Vector3;
@@ -59,11 +59,11 @@ export class PlayerController {
   private targetFov: number = 70;
 
   // Camera transition
-  private transitioning: boolean;
-  private transitionAlpha: number;
-  private transitionFrom: Vector3;
-  private transitionTo: Vector3;
-  private previousMode: CameraMode;
+  private transitioning: boolean = false;
+  private transitionAlpha: number = 1;
+  private transitionFrom: Vector3 = new Vector3();
+  private transitionTo: Vector3 = new Vector3();
+  private previousMode: CameraMode = 'first_person';
 
   // References
   private camera: PerspectiveCamera;
@@ -74,7 +74,7 @@ export class PlayerController {
   // Player visual capsule
   private capsuleMesh: Mesh;
 
-  // Raycaster for third-person camera collision
+  // Raycaster for camera collision
   private raycaster: Raycaster;
 
   constructor(
@@ -98,37 +98,31 @@ export class PlayerController {
     this.crouching = false;
     this.sprinting = false;
     this.isMoving = false;
-    this.headBobTimer = 0;
-    this.cameraMode = 'first_person';
-    this.previousMode = 'first_person';
 
     // Transition state
     this.transitioning = false;
-    this.transitionAlpha = 0;
+    this.transitionAlpha = 1;
     this.transitionFrom = new Vector3();
     this.transitionTo = new Vector3();
+    this.previousMode = 'first_person';
 
-    // Raycaster
-    this.raycaster = new Raycaster();
-
-    // Player capsule mesh – visible only in third-person
-    const capsuleGeo = new CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT, 8);
-    const capsuleMat = new MeshLambertMaterial({ color: 0x3399ff });
-    this.capsuleMesh = new Mesh(capsuleGeo, capsuleMat);
+    // Player capsule (visible in 2nd and 3rd person)
+    const capsuleGeom = new CylinderGeometry(PLAYER_RADIUS, PLAYER_RADIUS, PLAYER_HEIGHT, 12);
+    const capsuleMat = new MeshLambertMaterial({ color: 0x2288dd });
+    this.capsuleMesh = new Mesh(capsuleGeom, capsuleMat);
     this.capsuleMesh.visible = false;
+    this.capsuleMesh.castShadow = true;
     this.scene.add(this.capsuleMesh);
+
+    this.raycaster = new Raycaster();
+    this.raycaster.far = TP_DISTANCE;
   }
 
   // ────────────────────────────────────────────────────────────────────
   // Public API
   // ────────────────────────────────────────────────────────────────────
 
-  /**
-   * Main per-frame update. Call once per animation frame.
-   * @param dt – delta time in seconds
-   */
   update(dt: number): void {
-    // Clamp dt to avoid spiral-of-death on tab-away
     const clampedDt = Math.min(dt, 0.1);
 
     this.handleModeToggle();
@@ -140,12 +134,10 @@ export class PlayerController {
     this.updateCapsule();
   }
 
-  /** Returns a copy of the current player position (eye-level). */
   getPosition(): Vector3 {
     return this.position.clone();
   }
 
-  /** Returns the current look direction vector. */
   getLookVector(out?: Vector3): Vector3 {
     const target = out ?? new Vector3();
     const sinYaw = Math.sin(this.yaw);
@@ -156,7 +148,6 @@ export class PlayerController {
     return target;
   }
 
-  /** Returns current yaw and pitch in radians. */
   getRotation(): [number, number] {
     return [this.yaw, this.pitch];
   }
@@ -165,27 +156,25 @@ export class PlayerController {
   // Internals
   // ────────────────────────────────────────────────────────────────────
 
-  /** Toggle camera mode on F5 press. */
+  /** Cycle camera mode on F5 press: 1st -> 3rd (back) -> 2nd (front/selfie) -> 1st. */
   private handleModeToggle(): void {
     if (this.input.wasKeyPressed('F5')) {
       this.previousMode = this.cameraMode;
-      this.cameraMode = this.cameraMode === 'first_person' ? 'third_person' : 'first_person';
 
-      // Kick off transition
+      if (this.cameraMode === 'first_person') {
+        this.cameraMode = 'third_person';
+      } else if (this.cameraMode === 'third_person') {
+        this.cameraMode = 'second_person';
+      } else {
+        this.cameraMode = 'first_person';
+      }
+
       this.transitioning = true;
       this.transitionAlpha = 0;
       this.transitionFrom.copy(this.camera.position);
-
-      // Pre-calculate where the camera will end up
-      if (this.cameraMode === 'first_person') {
-        this.computeFirstPersonCameraPos(this.transitionTo);
-      } else {
-        this.computeThirdPersonCameraPos(this.transitionTo);
-      }
     }
   }
 
-  /** Apply mouse look deltas to yaw / pitch. */
   private processMouseLook(): void {
     const mouseDelta = this.input.getMouseDelta();
     this.yaw -= mouseDelta.x;
@@ -193,37 +182,32 @@ export class PlayerController {
     this.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.pitch));
   }
 
-  /** Process WASD movement and jump / crouch inputs. */
   private processMovement(dt: number): void {
-    // Determine speed
     this.crouching = this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
     const wantsSprint = this.input.isKeyDown('ControlLeft') || this.input.isKeyDown('ControlRight');
 
-    // Build movement vector in XZ plane relative to yaw
     const forward = _scratchVec3A.set(0, 0, 0);
     const sinYaw = Math.sin(this.yaw);
     const cosYaw = Math.cos(this.yaw);
 
-    // Forward direction (negative Z in camera space → world)
     const forwardX = -sinYaw;
     const forwardZ = -cosYaw;
-    // Right direction
     const rightX = cosYaw;
     const rightZ = -sinYaw;
 
-    if (this.input.isKeyDown('KeyW')) {
+    if (this.input.isKeyDown('KeyW') || this.input.isKeyDown('ArrowUp')) {
       forward.x += forwardX;
       forward.z += forwardZ;
     }
-    if (this.input.isKeyDown('KeyS')) {
+    if (this.input.isKeyDown('KeyS') || this.input.isKeyDown('ArrowDown')) {
       forward.x -= forwardX;
       forward.z -= forwardZ;
     }
-    if (this.input.isKeyDown('KeyA')) {
+    if (this.input.isKeyDown('KeyA') || this.input.isKeyDown('ArrowLeft')) {
       forward.x -= rightX;
       forward.z -= rightZ;
     }
-    if (this.input.isKeyDown('KeyD')) {
+    if (this.input.isKeyDown('KeyD') || this.input.isKeyDown('ArrowRight')) {
       forward.x += rightX;
       forward.z += rightZ;
     }
@@ -239,65 +223,58 @@ export class PlayerController {
     if (this.sprinting) {
       this.targetFov = 78;
     } else if (this.crouching) {
-      this.targetFov = 64;
+      this.targetFov = 66;
     } else {
       this.targetFov = 70;
     }
 
-    if (this.grounded && this.isMoving) {
-      this.headBobTimer += dt * (this.sprinting ? 14 : 10);
-    } else if (!this.isMoving) {
-      this.headBobTimer *= Math.pow(0.1, dt);
-    }
-
-    // Normalize to prevent diagonal speed boost, then scale
     if (this.isMoving) {
-      forward.normalize().multiplyScalar(speed * dt);
-      this.position.x += forward.x;
-      this.position.z += forward.z;
-    }
-
-    // Jump
-    if (
-      (this.input.isKeyDown('Space') || this.input.wasKeyPressed('Space')) &&
-      this.grounded
-    ) {
-      this.velocity.y = JUMP_IMPULSE;
-      this.grounded = false;
-    }
-  }
-
-  /** Apply gravity to vertical velocity and integrate. */
-  private applyPhysics(dt: number): void {
-    const inWater = this.position.y - EYE_HEIGHT < SEA_LEVEL;
-    if (inWater) {
-      // Buoyancy and water resistance
-      this.velocity.y -= (GRAVITY * 0.25) * dt;
-      this.velocity.y *= Math.pow(0.5, dt); // viscous damping
-      if (this.input.isKeyDown('Space') || this.input.wasKeyPressed('Space')) {
-        this.velocity.y = JUMP_IMPULSE * 0.45; // swim upward
-      }
+      forward.normalize().multiplyScalar(speed);
+      this.velocity.x = forward.x;
+      this.velocity.z = forward.z;
+      const bobFreq = this.sprinting ? 14 : 9;
+      this.headBobTimer += dt * bobFreq;
     } else {
-      // Normal air gravity
-      this.velocity.y -= GRAVITY * dt;
+      this.velocity.x = 0;
+      this.velocity.z = 0;
+      this.headBobTimer = 0;
     }
 
-    // Clamp at terminal velocity
-    if (this.velocity.y < -TERMINAL_VELOCITY) {
-      this.velocity.y = -TERMINAL_VELOCITY;
+    const isSwimming = this.position.y < SEA_LEVEL + 0.5;
+    if (this.input.isKeyDown('Space')) {
+      if (isSwimming) {
+        this.velocity.y = 4.0;
+      } else if (this.grounded) {
+        this.velocity.y = JUMP_IMPULSE;
+        this.grounded = false;
+      }
     }
-
-    // Integrate vertical position
-    this.position.y += this.velocity.y * dt;
   }
 
-  /** Snap player to terrain surface if below it. */
-  private terrainCollision(): void {
-    const terrainY = this.getTerrainHeight(this.position.x, this.position.z);
-    const feetTarget = terrainY + EYE_HEIGHT;
+  private applyPhysics(dt: number): void {
+    const isSwimming = this.position.y < SEA_LEVEL + 0.5;
 
-    if (this.position.y <= feetTarget) {
-      this.position.y = feetTarget;
+    if (isSwimming) {
+      this.velocity.y -= GRAVITY * 0.35 * dt;
+      this.velocity.y = Math.max(-6, Math.min(6, this.velocity.y));
+    } else {
+      this.velocity.y -= GRAVITY * dt;
+      if (this.velocity.y < -TERMINAL_VELOCITY) {
+        this.velocity.y = -TERMINAL_VELOCITY;
+      }
+    }
+
+    this.position.x += this.velocity.x * dt;
+    this.position.y += this.velocity.y * dt;
+    this.position.z += this.velocity.z * dt;
+  }
+
+  private terrainCollision(): void {
+    const terrainHeight = this.getTerrainHeight(this.position.x, this.position.z);
+    const minStandingY = terrainHeight + EYE_HEIGHT;
+
+    if (this.position.y <= minStandingY) {
+      this.position.y = minStandingY;
       this.velocity.y = 0;
       this.grounded = true;
     } else {
@@ -305,9 +282,6 @@ export class PlayerController {
     }
   }
 
-  // ── Camera helpers ─────────────────────────────────────────────────
-
-  /** Compute the first-person camera target position. */
   private computeFirstPersonCameraPos(out: Vector3): Vector3 {
     out.copy(this.position);
     if (this.crouching) {
@@ -326,15 +300,12 @@ export class PlayerController {
     return out;
   }
 
-  /** Compute the third-person camera target position (with terrain clamp). */
   private computeThirdPersonCameraPos(out: Vector3): Vector3 {
-    // Direction the camera should look from (behind & above)
     const sinYaw = Math.sin(this.yaw);
     const cosYaw = Math.cos(this.yaw);
     const sinPitch = Math.sin(this.pitch);
     const cosPitch = Math.cos(this.pitch);
 
-    // Camera offset in world space: behind the player along the view direction
     const offsetX = sinYaw * cosPitch * TP_DISTANCE;
     const offsetY = TP_HEIGHT + sinPitch * TP_DISTANCE;
     const offsetZ = cosYaw * cosPitch * TP_DISTANCE;
@@ -345,7 +316,6 @@ export class PlayerController {
       this.position.z + offsetZ,
     );
 
-    // Prevent camera from going below terrain
     const terrainAtCamera = this.getTerrainHeight(out.x, out.z);
     const minCameraY = terrainAtCamera + TP_CAMERA_TERRAIN_PAD;
     if (out.y < minCameraY) {
@@ -355,22 +325,51 @@ export class PlayerController {
     return out;
   }
 
-  /** Update camera position, rotation, and handle mode transitions. */
+  /** Compute second-person (front-facing / selfie) camera position. */
+  private computeSecondPersonCameraPos(out: Vector3): Vector3 {
+    const sinYaw = Math.sin(this.yaw);
+    const cosYaw = Math.cos(this.yaw);
+    const sinPitch = Math.sin(this.pitch);
+    const cosPitch = Math.cos(this.pitch);
+
+    const offsetX = -sinYaw * cosPitch * (TP_DISTANCE * 0.8);
+    const offsetY = TP_HEIGHT * 0.6 - sinPitch * (TP_DISTANCE * 0.8);
+    const offsetZ = -cosYaw * cosPitch * (TP_DISTANCE * 0.8);
+
+    out.set(
+      this.position.x + offsetX,
+      this.position.y + offsetY,
+      this.position.z + offsetZ,
+    );
+
+    const terrainAtCamera = this.getTerrainHeight(out.x, out.z);
+    const minCameraY = terrainAtCamera + TP_CAMERA_TERRAIN_PAD;
+    if (out.y < minCameraY) {
+      out.y = minCameraY;
+    }
+
+    return out;
+  }
+
   private updateCamera(dt: number): void {
-    // Dynamic FOV lerp during sprint/crouch
     if (Math.abs(this.camera.fov - this.targetFov) > 0.05) {
       this.camera.fov += (this.targetFov - this.camera.fov) * Math.min(1, dt * 8);
       this.camera.updateProjectionMatrix();
     }
 
-    // Compute target positions for each mode
     const fpTarget = _scratchVec3B;
     const tpTarget = _scratchVec3C;
+    const spTarget = _scratchVec3A;
+
     this.computeFirstPersonCameraPos(fpTarget);
     this.computeThirdPersonCameraPos(tpTarget);
+    this.computeSecondPersonCameraPos(spTarget);
+
+    let activeTarget = fpTarget;
+    if (this.cameraMode === 'third_person') activeTarget = tpTarget;
+    else if (this.cameraMode === 'second_person') activeTarget = spTarget;
 
     if (this.transitioning) {
-      // Advance transition
       this.transitionAlpha += dt / TRANSITION_DURATION;
 
       if (this.transitionAlpha >= 1) {
@@ -378,55 +377,38 @@ export class PlayerController {
         this.transitioning = false;
       }
 
-      // Smooth-step for nicer feel
       const t = this.smoothStep(this.transitionAlpha);
-
-      // Determine the actual from/to based on target mode
-      const fromPos = this.cameraMode === 'first_person' ? tpTarget : fpTarget;
-      const toPos = this.cameraMode === 'first_person' ? fpTarget : tpTarget;
-
-      this.camera.position.lerpVectors(fromPos, toPos, t);
+      this.camera.position.lerpVectors(this.transitionFrom, activeTarget, t);
     } else {
-      // Steady-state
-      if (this.cameraMode === 'first_person') {
-        this.camera.position.copy(fpTarget);
-      } else {
-        this.camera.position.copy(tpTarget);
-      }
+      this.camera.position.copy(activeTarget);
     }
 
-    // Camera rotation — always look towards the player's facing direction
     if (this.cameraMode === 'first_person' && !this.transitioning) {
-      // First person: camera rotation matches yaw / pitch directly
       _scratchEuler.set(this.pitch, this.yaw, 0, 'YXZ');
       this.camera.quaternion.setFromEuler(_scratchEuler);
+    } else if (this.cameraMode === 'second_person') {
+      // In second person, look directly at player eye level
+      this.camera.lookAt(this.position.x, this.position.y - 0.2, this.position.z);
     } else {
-      // Third person (and during transition): look at the player position
-      const lookTarget = _scratchVec3A.copy(this.position);
-      this.camera.lookAt(lookTarget);
+      // Third person: look at player position
+      this.camera.lookAt(this.position);
     }
   }
 
-  /** Update the capsule mesh's position and visibility. */
   private updateCapsule(): void {
-    const isThirdPerson = this.cameraMode === 'third_person';
-    this.capsuleMesh.visible = isThirdPerson;
+    const isVisible = this.cameraMode === 'third_person' || this.cameraMode === 'second_person';
+    this.capsuleMesh.visible = isVisible;
 
-    if (isThirdPerson) {
-      // Position capsule at player body center (feet + half height)
+    if (isVisible) {
       this.capsuleMesh.position.set(
         this.position.x,
         this.position.y - EYE_HEIGHT + PLAYER_HEIGHT / 2,
         this.position.z,
       );
-      // Rotate capsule to face the yaw direction
       this.capsuleMesh.rotation.set(0, this.yaw, 0);
     }
   }
 
-  // ── Utilities ──────────────────────────────────────────────────────
-
-  /** Classic smooth-step interpolation (3t² - 2t³). */
   private smoothStep(t: number): number {
     return t * t * (3 - 2 * t);
   }

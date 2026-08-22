@@ -38,7 +38,7 @@ export class GameEngine {
   private cameraMode: 'player' | 'fly' = 'player';
 
   // Day/night cycle: 0–1 over 600 seconds (10 min real time = 1 game day)
-  private worldTime = 0.3; // Start at morning
+  private worldTime = 0.45; // Start at bright midday sunlight
   private static readonly DAY_DURATION = 600;
 
   // FPS tracking
@@ -237,12 +237,18 @@ export class GameEngine {
         [-14, -22],
         [28, 5],
         [-25, -8],
+        [10, 25],
+        [-12, 28],
+        [32, -12],
+        [-30, 18],
+        [18, -32],
+        [-22, -28],
       ];
       for (const [tx, tz] of treeOffsets) {
         const tree = await this.assetLoader.loadModel('minecraft_tree.glb');
         const ty = queryTerrainHeight(tx, tz);
         tree.position.set(tx, ty, tz);
-        tree.scale.setScalar(1.0 + (Math.random() - 0.5) * 0.3);
+        tree.scale.setScalar(1.1 + (Math.random() - 0.5) * 0.4);
         this.renderer.scene.add(tree);
       }
     } catch (err) {
@@ -258,7 +264,7 @@ export class GameEngine {
     this.worldTime += dt / GameEngine.DAY_DURATION;
     if (this.worldTime >= 1) this.worldTime -= 1;
 
-    const skyState = this.sky.update(this.worldTime);
+    const skyState = this.sky.update(this.worldTime, this.renderer.camera.position);
 
     // Update renderer fog/background to match sky
     this.renderer.updateFogColor(skyState.horizonColor);

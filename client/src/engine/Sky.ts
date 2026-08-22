@@ -136,17 +136,17 @@ function createDiscTexture(
 // Colour presets for different times of day
 // ---------------------------------------------------------------------------
 
-const DAY_ZENITH   = new Color(0x1E90FF);
-const DAY_HORIZON  = new Color(0x87CEEB);
+const DAY_ZENITH   = new Color(0x3a88e9);
+const DAY_HORIZON  = new Color(0x9be2f9);
 
-const NIGHT_ZENITH  = new Color(0x050A30);
-const NIGHT_HORIZON = new Color(0x0C1445);
+const NIGHT_ZENITH  = new Color(0x04081c);
+const NIGHT_HORIZON = new Color(0x0e1938);
 
-const SUNSET_ZENITH  = new Color(0x1E60CC);
-const SUNSET_HORIZON = new Color(0xFF7F50);
+const SUNSET_ZENITH  = new Color(0x28489e);
+const SUNSET_HORIZON = new Color(0xff7a40);
 
-const SUNRISE_ZENITH  = new Color(0x2070DD);
-const SUNRISE_HORIZON = new Color(0xFFB6C1);
+const SUNRISE_ZENITH  = new Color(0x3568c4);
+const SUNRISE_HORIZON = new Color(0xffab7a);
 
 // ---------------------------------------------------------------------------
 // SkySystem
@@ -232,7 +232,7 @@ export class SkySystem {
   // worldTime: 0‒1  (0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset)
   // -----------------------------------------------------------------------
 
-  update(worldTime: number): SkyState {
+  update(worldTime: number, cameraPos?: Vector3): SkyState {
     const t = ((worldTime % 1) + 1) % 1; // normalise to [0,1)
 
     // ---- sun angle (radians) ----
@@ -247,12 +247,19 @@ export class SkySystem {
     const sz = 0;
 
     this._sunPos.set(sx, sy, sz);
-    this.sunMesh.position.copy(this._sunPos);
-    this.sunMesh.lookAt(0, 0, 0); // always face the camera origin
 
-    // Moon is on the opposite side
-    this.moonMesh.position.set(-sx, -sy, -sz);
-    this.moonMesh.lookAt(0, 0, 0);
+    if (cameraPos) {
+      this.skyMesh.position.copy(cameraPos);
+      this.sunMesh.position.set(cameraPos.x + sx, cameraPos.y + sy, cameraPos.z + sz);
+      this.sunMesh.lookAt(cameraPos);
+      this.moonMesh.position.set(cameraPos.x - sx, cameraPos.y - sy, cameraPos.z - sz);
+      this.moonMesh.lookAt(cameraPos);
+    } else {
+      this.sunMesh.position.copy(this._sunPos);
+      this.sunMesh.lookAt(0, 0, 0);
+      this.moonMesh.position.set(-sx, -sy, -sz);
+      this.moonMesh.lookAt(0, 0, 0);
+    }
 
     // ---- compute sky colours ----
     // Blend zones:
